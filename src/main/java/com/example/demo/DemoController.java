@@ -6,14 +6,19 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class DemoController {
 
+    @GetMapping("/hi")
+    public String hello() {
+        return "Welcome to springapp!";
+    }
+
     @GetMapping("/hello")
     public String helloWorld() {
         return "Hello, World!";
     }
 
-    @GetMapping("/hi")
+    @GetMapping("/bye")
     public String welcome() {
-        return "Welcome to springapp!";
+        return "Hi to springapp!";
     }
 }
 
