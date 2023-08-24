@@ -1,0 +1,40 @@
+pipeline {
+    agent any
+
+    tools {
+        // Install the Maven version configured as "M3" and add it to the path.
+        maven "M3"
+    }
+
+    stages {
+        stage('Git Checkout') {
+            steps {
+                // Get some code from a GitHub repository
+                git 'https://github.com/Jathin-Sagar/task3.git'
+            }
+        }
+        stage('Maven Build') {
+            steps {
+
+                // Build the project using Maven
+                sh "mvn -Dmaven.test.failure.ignore=true clean package"
+            }
+        }
+        stage('Docker Build') {
+            steps {
+                // Build a Docker image using the Docker Pipeline Plugin
+                script {
+                    sh 'docker build -t springappimagaug24 -f Dockerfile .'
+                }
+            }
+        }
+        stage('Run Container') {
+            steps {
+                // Run the Docker container
+                script {
+                    sh 'docker run -d -p 8080:8080 --name springappcontainer springappimagaug24'
+                }
+            }
+        }
+    }
+}
