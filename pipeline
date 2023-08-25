@@ -1,38 +1,86 @@
 pipeline {
     agent any
-
+    environment {
+        def imageName = "springappimagaug24"
+        def imageTag = "latest"
+        def containerName = 'springappcontainer3'
+    }
     tools {
-        // Install the Maven version configured as "M3" and add it to the path.
         maven "M3"
     }
 
     stages {
         stage('Git Checkout') {
             steps {
-                // Get some code from a GitHub repository
                 git 'https://github.com/Jathin-Sagar/task3.git'
             }
         }
         stage('Maven Build') {
             steps {
-
-                // Build the project using Maven
                 sh "mvn -Dmaven.test.failure.ignore=true clean package"
             }
         }
         stage('Docker Build') {
             steps {
-                // Build a Docker image using the Docker Pipeline Plugin
                 script {
-                    sh 'docker build -t springappimagaug24 -f Dockerfile .'
+                    sh 'docker build -t $imageName -f Dockerfile .'
                 }
             }
         }
+        stage('Image Scan') {
+            steps {
+                script {
+                    // Install Trivy (assuming it's available in the PATH)
+                    sh 'trivy --version'
+
+                    // Scan the Docker image with Trivy
+                    sh 'trivy image $imageName'
+                }
+            }
+        }
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    def dockerHubCreds = credentials('docker_isw147')
+                    
+                    // Log in to Docker Hub using encrypted credentials
+                    withCredentials([usernamePassword(credentialsId: 'docker_isw147', usernameVariable: 'DOCKER_HUB_USERNAME', passwordVariable: 'DOCKER_HUB_PASSWORD')]) {
+                        sh "docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD"
+                        
+                        // Tag the image for Docker Hub
+                        sh 'docker tag $imageName:$imageTag seerlajathin/$imageName:$imageTag'
+                        
+                        // Push the image to Docker Hub
+                        sh 'docker push seerlajathin/$imageName:$imageTag'
+                        
+                        // Log out from Docker Hub
+                        sh 'docker logout'
+                    }
+                }
+            }
+        }
+        stage('PULL From DOCKERHUB') {
+            steps {
+                script {
+                    sh "docker pull seerlajathin/$imageName:$imageTag"
+                }
+            }
+        }
+  
         stage('Run Container') {
             steps {
-                // Run the Docker container
                 script {
-                    sh 'docker run -d -p 8080:8080 --name springappcontainer springappimagaug24'
+                    def existingContainer = sh(script: "docker ps -aqf name=${containerName}", returnStdout: true).trim()
+
+                    // Check if a container with the specified name already exists
+                    if (existingContainer) {
+                        echo "Stopping and removing existing container: $existingContainer"
+                        sh "docker stop $existingContainer"
+                        sh "docker rm $existingContainer"
+                    }
+
+                    // Run the Docker container
+                    sh "docker run -d -p 8080:8080 --name $containerName seerlajathin/$imageName:$imageTag"
                 }
             }
         }
